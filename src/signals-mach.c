@@ -142,7 +142,7 @@ static void jl_throw_in_thread(int tid, mach_port_t thread, jl_value_t *exceptio
     if (!ptls2->safe_restore) {
         assert(exception);
         ptls2->bt_size = rec_backtrace_ctx(ptls2->bt_data, JL_MAX_BT_SIZE,
-                                           (bt_context_t*)&state, 1);
+                                           (bt_context_t*)&state, 1, NULL);
         ptls2->sig_exception = exception;
     }
     jl_call_in_state(ptls2, &state, &jl_sig_throw);
@@ -421,13 +421,14 @@ void *mach_profile_listener(void *arg)
         // sample each thread, round-robin style in reverse order
         // (so that thread zero gets notified last)
         for (i = jl_n_threads; i-- > 0; ) {
-            // if there is no space left, break early
-            if (bt_size_cur >= bt_size_max - 1)
-                break;
+            assert(bt_size_cur < bt_size_max - 1);
 
             unw_context_t *uc;
             jl_thread_suspend_and_get_state(i, &uc);
             if (running) {
+                // Get the backtrace
+                size_t bt_size_step = 0;
+                int incomplete = 0;
 #ifdef LIBOSXUNWIND
                 /*
                  *  Unfortunately compact unwind info is incorrectly generated for quite a number of
@@ -446,24 +447,35 @@ void *mach_profile_listener(void *arg)
                 forceDwarf = 0;
                 unw_getcontext(&profiler_uc); // will resume from this point if the next lines segfault at any point
 
-                if (forceDwarf == 0) {
-                    // Save the backtrace
-                    bt_size_cur += rec_backtrace_ctx((uintptr_t*)bt_data_prof + bt_size_cur, bt_size_max - bt_size_cur - 1, uc, 0);
-                }
-                else if (forceDwarf == 1) {
-                    bt_size_cur += rec_backtrace_ctx_dwarf((uintptr_t*)bt_data_prof + bt_size_cur, bt_size_max - bt_size_cur - 1, uc, 0);
-                }
-                else if (forceDwarf == -1) {
+                if (forceDwarf == 0)
+                    bt_size_step =
+                        rec_backtrace_ctx((uintptr_t*)bt_data_prof + bt_size_cur,
+                                          bt_size_max - bt_size_cur - 1, uc, 0,
+                                          &incomplete);
+                else if (forceDwarf == 1)
+                    bt_size_step =
+                        rec_backtrace_ctx_dwarf((uintptr_t*)bt_data_prof + bt_size_cur,
+                                                bt_size_max - bt_size_cur - 1, uc, 0,
+                                                &incomplete);
+                else if (forceDwarf == -1)
                     jl_safe_printf("WARNING: profiler attempt to access an invalid memory location\n");
-                }
-
                 forceDwarf = -2;
 #else
-                bt_size_cur += rec_backtrace_ctx((uintptr_t*)bt_data_prof + bt_size_cur, bt_size_max - bt_size_cur - 1, uc, 0);
+                bt_size_step =
+                    rec_backtrace_ctx((uintptr_t*)bt_data_prof + bt_size_cur,
+                                      bt_size_max - bt_size_cur - 1, uc, 0, &incomplete);
 #endif
 
-                // Mark the end of this block with 0
-                bt_data_prof[bt_size_cur++] = 0;
+                // Save the backtrace data
+                if (incomplete) {
+                    bt_overflow = 1;
+                    jl_profile_stop_timer();
+                    break;
+                } else {
+                    bt_size_cur += bt_size_step;
+                    bt_data_prof[bt_size_cur++] = 0;    // mark end with 0
+                    assert(bt_size_cur < bt_size_max);
+                }
 
                 // Reset the alarm
                 kern_return_t ret = clock_alarm(clk, TIME_RELATIVE, timerprof, profile_port);
