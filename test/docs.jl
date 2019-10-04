@@ -677,7 +677,7 @@ end
 # Simple tests for apropos:
 @test occursin("eachindex", sprint(apropos, r"ind(exes|ices)"))
 using Profile
-@test occursin("Profile.print", sprint(apropos, "print"))
+@test occursin("Profile.Time.print", sprint(apropos, "print"))
 
 # Issue #13068.
 

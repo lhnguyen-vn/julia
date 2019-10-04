@@ -53,15 +53,16 @@ Now we're ready to profile this function:
 
 ```julia-repl
 julia> using Profile
+julia> using Profile: Time
 
-julia> @profile myfunc()
+julia> Time.@profile myfunc()
 ```
 
 To see the profiling results, there is a [graphical browser](https://github.com/timholy/ProfileView.jl)
 available, but here we'll use the text-based display that comes with the standard library:
 
 ```julia-repl
-julia> Profile.print()
+julia> Profile.Time.print()
 80 ./event.jl:73; (::Base.REPL.##1#2{Base.REPL.REPLBackend})()
  80 ./REPL.jl:97; macro expansion
   80 ./REPL.jl:66; eval_user_input(::Any, ::Base.REPL.REPLBackend)
@@ -93,7 +94,7 @@ In this example, we can see that the top level function called is in the file `e
 function that runs the REPL when you launch Julia. If you examine line 97 of `REPL.jl`,
 you'll see this is where the function `eval_user_input()` is called. This is the function that evaluates
 what you type at the REPL, and since we're working interactively these functions were invoked
-when we entered `@profile myfunc()`. The next line reflects actions taken in the [`@profile`](@ref)
+when we entered `Time.@profile myfunc()`. The next line reflects actions taken in the [`Profile.Time.@profile`](@ref)
 macro.
 
 The first line shows that 80 backtraces were taken at line 73 of `event.jl`, but it's not that
@@ -128,9 +129,9 @@ as finding the maximum element. We could increase our confidence in this result 
 collecting more samples:
 
 ```julia-repl
-julia> @profile (for i = 1:100; myfunc(); end)
+julia> Profile.Time.@profile (for i = 1:100; myfunc(); end)
 
-julia> Profile.print()
+julia> Profile.Time.print()
 [....]
  3821 ./REPL[1]:2; myfunc()
   3511 ./random.jl:431; rand!(::MersenneTwister, ::Array{Float64,3}, ::Int64, ::Type...
@@ -152,7 +153,7 @@ This illustrates the default "tree" dump; an alternative is the "flat" dump, whi
 counts independent of their nesting:
 
 ```julia-repl
-julia> Profile.print(format=:flat)
+julia> Profile.Time.print(format=:flat)
  Count File          Line Function
   6714 ./<missing>     -1 anonymous
   6714 ./REPL.jl       66 eval_user_input(::Any, ::Base.REPL.REPLBackend)
@@ -200,13 +201,13 @@ useful way to view the results.
 
 ## Accumulation and clearing
 
-Results from [`@profile`](@ref) accumulate in a buffer; if you run multiple pieces of code under
-[`@profile`](@ref), then [`Profile.print()`](@ref) will show you the combined results. This can
-be very useful, but sometimes you want to start fresh; you can do so with [`Profile.clear()`](@ref).
+Results from [`Profile.Time.@profile`](@ref) accumulate in a buffer; if you run multiple pieces of code under
+[`Profile.Time.@profile`](@ref), then [`Profile.Time.print()`](@ref) will show you the combined results. This can
+be very useful, but sometimes you want to start fresh; you can do so with [`Profile.Time.clear()`](@ref).
 
 ## Options for controlling the display of profile results
 
-[`Profile.print`](@ref) has more options than we've described so far. Let's see the full declaration:
+[`Profile.Time.print`](@ref) has more options than we've described so far. Let's see the full declaration:
 
 ```julia
 function print(io::IO = stdout, data = fetch(); kwargs...)
@@ -216,15 +217,15 @@ Let's first discuss the two positional arguments, and later the keyword argument
 
   * `io` -- Allows you to save the results to a buffer, e.g. a file, but the default is to print to `stdout`
     (the console).
-  * `data` -- Contains the data you want to analyze; by default that is obtained from [`Profile.fetch()`](@ref),
+  * `data` -- Contains the data you want to analyze; by default that is obtained from [`Profile.Time.fetch()`](@ref),
     which pulls out the backtraces from a pre-allocated buffer. For example, if you want to profile
     the profiler, you could say:
 
     ```julia
-    data = copy(Profile.fetch())
-    Profile.clear()
-    @profile Profile.print(stdout, data) # Prints the previous results
-    Profile.print()                      # Prints results from Profile.print()
+    data = copy(Profile.Time.fetch())
+    Profile.Time.clear()
+    Profile.Time.@profile Profile.Time.print(stdout, data) # Prints the previous results
+    Profile.Time.print()                                   # Prints results from Profile.Time.print()
     ```
 
 The keyword arguments can be any combination of:
@@ -233,7 +234,7 @@ The keyword arguments can be any combination of:
      with (default, `:tree`) or without (`:flat`) indentation indicating tree
      structure.
   * `C` -- If `true`, backtraces from C and Fortran code are shown (normally they are excluded). Try running the introductory
-    example with `Profile.print(C = true)`. This can be extremely helpful in deciding whether it's
+    example with `Profile.Time.print(C = true)`. This can be extremely helpful in deciding whether it's
     Julia code or C code that is causing a bottleneck; setting `C = true` also improves the interpretability
     of the nesting, at the cost of longer profile dumps.
   * `combine` -- Some lines of code contain multiple operations; for example, `s += A[i]` contains both an array
@@ -256,13 +257,13 @@ to save to a file using a wide `displaysize` in an [`IOContext`](@ref):
 
 ```julia
 open("/tmp/prof.txt", "w") do s
-    Profile.print(IOContext(s, :displaysize => (24, 500)))
+    Profile.Time.print(IOContext(s, :displaysize => (24, 500)))
 end
 ```
 
 ## Configuration
 
-[`@profile`](@ref) just accumulates backtraces, and the analysis happens when you call [`Profile.print()`](@ref).
+[`Profile.Time.@profile`](@ref) just accumulates backtraces, and the analysis happens when you call [`Profile.Time.print()`](@ref).
 For a long-running computation, it's entirely possible that the pre-allocated buffer for storing
 backtraces will be filled. If that happens, the backtraces stop but your computation continues.
 As a consequence, you may miss some important profiling data (you will get a warning when that
@@ -271,8 +272,8 @@ happens).
 You can obtain and configure the relevant parameters this way:
 
 ```julia
-Profile.init() # returns the current settings
-Profile.init(n = 10^7, delay = 0.01)
+Profile.Time.init() # returns the current settings
+Profile.Time.init(n = 10^7, delay = 0.01)
 ```
 
 `n` is the total number of instruction pointers you can store, with a default value of `10^6`.
