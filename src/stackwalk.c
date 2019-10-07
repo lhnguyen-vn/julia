@@ -168,7 +168,8 @@ NOINLINE size_t rec_backtrace_ctx(uintptr_t *bt_data, size_t maxsize,
 //
 // The first `skip` frames are omitted, in addition to omitting the frame from
 // `rec_backtrace` itself.
-NOINLINE size_t rec_backtrace(uintptr_t *bt_data, size_t maxsize, int skip, int* incomplete)
+NOINLINE size_t rec_backtrace(uintptr_t *bt_data, size_t maxsize, int skip,
+                              int add_interp_frames, int* incomplete)
 {
     bt_context_t context;
     memset(&context, 0, sizeof(context));
@@ -177,7 +178,8 @@ NOINLINE size_t rec_backtrace(uintptr_t *bt_data, size_t maxsize, int skip, int*
     if (!jl_unw_init(&cursor, &context))
         return 0;
     size_t bt_size = 0;
-    int have_more_frames = jl_unw_stepn(&cursor, bt_data, &bt_size, NULL, maxsize, skip + 1, 1, 0);
+    int have_more_frames = jl_unw_stepn(&cursor, bt_data, &bt_size, NULL, maxsize,
+                                        skip + 1, add_interp_frames, 0);
     if (incomplete)
         *incomplete = have_more_frames;
     return bt_size;

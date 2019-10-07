@@ -239,7 +239,7 @@ JL_DLLEXPORT void *jl_task_stack_buffer(jl_task_t *task, size_t *size, int *tid)
 NOINLINE static void record_backtrace(jl_ptls_t ptls, int skip) JL_NOTSAFEPOINT
 {
     // storing bt_size in ptls ensures roots in bt_data will be found
-    ptls->bt_size = rec_backtrace(ptls->bt_data, JL_MAX_BT_SIZE, skip + 1, NULL);
+    ptls->bt_size = rec_backtrace(ptls->bt_data, JL_MAX_BT_SIZE, skip + 1, 1, NULL);
 }
 
 JL_DLLEXPORT void julia_init(JL_IMAGE_SEARCH rel)
